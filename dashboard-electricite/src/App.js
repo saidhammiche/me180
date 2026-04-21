@@ -1,382 +1,209 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { Card, CardContent, Typography, Paper, Box, Button, Divider } from "@mui/material";
-import BoltIcon from '@mui/icons-material/Bolt';
-import ShowChartIcon from '@mui/icons-material/ShowChart';
-import ElectricalServicesIcon from '@mui/icons-material/ElectricalServices';
-import FlashOnIcon from '@mui/icons-material/FlashOn';
-import PowerIcon from '@mui/icons-material/Power';
-import SpeedIcon from '@mui/icons-material/Speed';
-import TimelineIcon from '@mui/icons-material/Timeline';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import DashboardIcon from '@mui/icons-material/Dashboard';
-import CircleIcon from '@mui/icons-material/Circle';
-import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
-import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import { Paper, Typography, Box, Button, Divider } from "@mui/material";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import DashboardIcon from "@mui/icons-material/Dashboard";
+import ElectricBoltIcon from "@mui/icons-material/ElectricBolt";
+import FunctionsIcon from "@mui/icons-material/Functions";
+import SpeedIcon from "@mui/icons-material/Speed";
+import FlashOnIcon from "@mui/icons-material/FlashOn";
+import TimelineIcon from "@mui/icons-material/Timeline";
+import BatteryChargingFullIcon from "@mui/icons-material/BatteryChargingFull";
+import VoltageSvgIcon from "@mui/icons-material/FlashOn";
+import DeviceHubIcon from "@mui/icons-material/DeviceHub";
+import ViewModuleIcon from "@mui/icons-material/ViewModule";
 
 function App() {
   const [data, setData] = useState({});
+  const [loading, setLoading] = useState(true);
 
   const fetchData = async () => {
     try {
       const res = await axios.get("http://localhost:4000/data");
+      console.log("Données:", res.data);
       setData(res.data);
+      setLoading(false);
     } catch (err) {
       console.error(err);
+      setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 1000);
+    const interval = setInterval(fetchData, 2000);
     return () => clearInterval(interval);
   }, []);
 
-  // Les clés triées comme dans l'original
-  const sortedKeys = Object.keys(data).sort((a, b) => parseInt(a.slice(2)) - parseInt(b.slice(2)));
-
-  // Séparation en trois groupes
-  const group1 = sortedKeys.slice(0, 6);
-  const group2 = sortedKeys.slice(6, 12);
-  const group3 = sortedKeys.slice(12, 18);
-
-  // Les lettres dans l'ordre correct pour chaque groupe
-  const letters1 = ["a", "b", "c", "d", "e", "f"];
-  const letters2 = ["g", "h", "i", "j", "k", "l"];
-  const letters3 = ["m", "n", "o", "p", "q", "r"];
+  const formatValue = (value, decimals = 3, unit = "") => {
+    if (value === undefined || value === null) return "0";
+    const num = parseFloat(value);
+    if (isNaN(num)) return "0";
+    return `${num.toFixed(decimals)}${unit ? " " + unit : ""}`;
+  };
 
   const primaryColor = "#7cbbcd";
-  const valueColor = "#6a9fa0";
-  const maxColor = "#2ecc71";
-  const minColor = "#e74c3c";
-
   const grafanaUrl = "http://172.16.1.97:3000/d/adlddrl/monitoring-des-stromverbrauchs-e28093-me180e2809c?orgId=1&from=now-15m&to=now&timezone=browser&refresh=5s";
 
-  const formatValue = (value) => {
-    if (value === undefined || value === null) return "—";
-    const num = parseFloat(value);
-    if (isNaN(num)) return "—";
-    return num.toFixed(3);
+  const orderedChannels = [
+    "CH1", "CH2", "CH3", "CH4", "CH5", "CH6",
+    "CH7", "CH8", "CH9", "CH10", "CH11", "CH12",
+    "CH13", "CH14", "CH15", "CH16", "CH17", "CH18"
+  ];
+
+  const group1 = orderedChannels.slice(0, 6);
+  const group2 = orderedChannels.slice(6, 12);
+  const group3 = orderedChannels.slice(12, 18);
+
+  const spannungU1 = data["CH1"]?.Spannung;
+  const spannungU2 = data["CH7"]?.Spannung;
+  const spannungU3 = data["CH13"]?.Spannung;
+
+  const ValueRow = ({ icon: Icon, label, value, unit }) => {
+    const formattedValue = formatValue(value, label === "Cosinus Phi" ? 4 : label === "Strom" ? 3 : 2, unit);
+    
+    return (
+      <Box display="flex" justifyContent="space-between" alignItems="center" style={{ marginBottom: 6 }}>
+        <Box display="flex" alignItems="center" gap={0.8}>
+          <Icon style={{ color: "#888", fontSize: "0.85rem" }} />
+          <Typography variant="caption" style={{ color: "#666" }}>
+            {label}:
+          </Typography>
+        </Box>
+        {/* Valeur avec taille fixe et fond gris */}
+        <Box 
+          style={{ 
+            backgroundColor: "#e0e0e0",
+            padding: "2px 8px",
+            borderRadius: "4px",
+            minWidth: "100px",
+            textAlign: "center",
+            display: "inline-block"
+          }}
+        >
+          <Typography variant="caption" style={{ fontWeight: 500, color: "#222" }}>
+            {formattedValue}
+          </Typography>
+        </Box>
+      </Box>
+    );
   };
 
-  // Fonction pour trouver tous les max et min d'un groupe (gère les égalités)
-  const getMaxMinAll = (group) => {
-    if (!group || group.length === 0) return { max: [], min: [], maxValue: null, minValue: null };
-    
-    let maxValue = -Infinity;
-    let minValue = Infinity;
-    
-    group.forEach(key => {
-      const value = parseFloat(data[key]);
-      if (!isNaN(value)) {
-        if (value > maxValue) maxValue = value;
-        if (value < minValue) minValue = value;
-      }
-    });
-    
-    const maxKeys = [];
-    const minKeys = [];
-    
-    group.forEach(key => {
-      const value = parseFloat(data[key]);
-      if (!isNaN(value)) {
-        if (value === maxValue) maxKeys.push(key);
-        if (value === minValue) minKeys.push(key);
-      }
-    });
-    
-    return { max: maxKeys, min: minKeys, maxValue, minValue };
+  const ChannelCard = ({ channel }) => {
+    const channelData = data[channel] || {};
+    const label = channelData.Label || channel;
+
+    return (
+      <Paper elevation={1} style={{ padding: "10px", backgroundColor: "#fff", borderRadius: 8, marginBottom: 10 }}>
+        <Box display="flex" alignItems="center" gap={1} style={{ marginBottom: 8 }}>
+          <DeviceHubIcon style={{ color: primaryColor, fontSize: "0.9rem" }} />
+          <Typography variant="subtitle2" style={{ fontWeight: 600, color: primaryColor, fontSize: "0.85rem" }}>
+            {channel}
+          </Typography>
+          <Typography variant="caption" style={{ color: "#999", flex: 1, textAlign: "right", fontSize: "0.7rem" }}>
+            {label}
+          </Typography>
+        </Box>
+
+        <Divider style={{ marginBottom: 8, backgroundColor: "#e0e0e0" }} />
+
+        <ValueRow icon={ElectricBoltIcon} label="Strom" value={channelData.Strom} unit="A" />
+        <ValueRow icon={FunctionsIcon} label="Cosinus Phi" value={channelData.CosinusPhi} unit="" />
+        <ValueRow icon={SpeedIcon} label="Wirkleistung" value={channelData.Wirkleistung} unit="W" />
+        <ValueRow icon={FlashOnIcon} label="Blindleistung" value={channelData.Blindleistung} unit="var" />
+        <ValueRow icon={TimelineIcon} label="Scheinleistung" value={channelData.Scheinleistung} unit="VA" />
+        <ValueRow icon={BatteryChargingFullIcon} label="Energie" value={channelData.Energie} unit="kWh" />
+      </Paper>
+    );
   };
 
-  const maxMin1 = getMaxMinAll(group1);
-  const maxMin2 = getMaxMinAll(group2);
-  const maxMin3 = getMaxMinAll(group3);
+  const GroupSection = ({ channels, title, icon: Icon }) => (
+    <Paper elevation={2} style={{ flex: 1, padding: "12px", background: "#fff", borderRadius: 10 }}>
+      <Box display="flex" alignItems="center" justifyContent="center" gap={1} style={{ marginBottom: 12 }}>
+        <Icon style={{ color: primaryColor, fontSize: "1.1rem" }} />
+        <Typography variant="subtitle2" style={{ fontWeight: 600, color: primaryColor, letterSpacing: "0.5px" }}>
+          {title}
+        </Typography>
+      </Box>
+      {channels.map(ch => (
+        <ChannelCard key={ch} channel={ch} />
+      ))}
+    </Paper>
+  );
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" height="100vh" bgcolor="#f5f5f5">
+        <Typography variant="h5" color={primaryColor}>Chargement...</Typography>
+      </Box>
+    );
+  }
 
   return (
-    <div style={{ 
-      padding: 20, 
-      display: "flex", 
-      justifyContent: "center", 
-      alignItems: "center",
-      height: "100vh",
-      backgroundColor: "#e0e0e0",
-      overflow: "hidden"
-    }}>
-      <div style={{ maxWidth: 1300, width: "100%", height: "calc(100vh - 40px)", display: "flex", flexDirection: "column" }}>
+    <div style={{ padding: "15px 40px", backgroundColor: "#f0f0f0", minHeight: "100vh" }}>
+      <div style={{ maxWidth: "100%", margin: "0 auto" }}>
         
-        {/* Titre principal avec icône */}
-        <Box display="flex" justifyContent="space-between" alignItems="center" style={{ marginBottom: 20, borderBottom: `2px solid ${primaryColor}`, paddingBottom: 10 }}>
-          <div style={{ width: 100 }}></div>
-          <Box display="flex" alignItems="center" gap={2}>
-            <DashboardIcon style={{ color: primaryColor, fontSize: "2.2rem" }} />
-            <Typography variant="h4" style={{ 
-              fontWeight: 700, 
-              color: primaryColor,
-              fontSize: "2rem",
-              letterSpacing: "1px",
-              textAlign: "center"
-            }}>
-              Live Daten
-            </Typography>
+        <Paper elevation={2} style={{ padding: "12px 20px", marginBottom: 20, borderRadius: 10, backgroundColor: "#fff" }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap">
+            <Box display="flex" alignItems="center" gap={1.5}>
+              <DashboardIcon style={{ color: primaryColor, fontSize: "1.8rem" }} />
+              <Typography variant="h5" style={{ fontWeight: 600, color: "#333" }}>
+                Live Monitoring - ME180
+              </Typography>
+            </Box>
+            <Button 
+              variant="outlined" 
+              href={grafanaUrl} 
+              target="_blank" 
+              startIcon={<TrendingUpIcon />}
+              style={{ borderColor: primaryColor, color: primaryColor, textTransform: "none", borderRadius: 20, fontSize: "0.75rem", padding: "4px 16px" }}
+            >
+              Grafana Dashboard
+            </Button>
           </Box>
-          <Button
-            variant="outlined"
-            href={grafanaUrl}
-            target="_blank"
-            startIcon={<TrendingUpIcon />}
-            style={{
-              borderColor: primaryColor,
-              color: primaryColor,
-              textTransform: "none",
-              fontWeight: 600,
-              fontSize: "0.8rem",
-              padding: "6px 20px",
-              borderRadius: 30,
-              background: "white",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-              transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-              letterSpacing: "0.5px"
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.background = primaryColor;
-              e.target.style.color = "white";
-              e.target.style.borderColor = primaryColor;
-              e.target.style.transform = "translateY(-2px)";
-              e.target.style.boxShadow = "0 6px 16px rgba(0,0,0,0.15)";
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.background = "white";
-              e.target.style.color = primaryColor;
-              e.target.style.borderColor = primaryColor;
-              e.target.style.transform = "translateY(0)";
-              e.target.style.boxShadow = "0 2px 8px rgba(0,0,0,0.1)";
-            }}
-          >
-            Live Trend
-          </Button>
+        </Paper>
+
+        <Box display="flex" gap={2} style={{ marginBottom: 25 }}>
+          <Paper elevation={2} style={{ flex: 1, padding: "15px", backgroundColor: "#fff", borderRadius: 10, textAlign: "center" }}>
+            <Box display="flex" alignItems="center" justifyContent="center" gap={1}>
+              <VoltageSvgIcon style={{ color: primaryColor, fontSize: "1.3rem" }} />
+              <Typography variant="subtitle1" style={{ fontWeight: 600, color: "#555" }}>Phase 1</Typography>
+            </Box>
+            <Typography variant="h3" style={{ fontWeight: 600, color: "#222", marginTop: 5 }}>
+              {formatValue(spannungU1, 1, "V")}
+            </Typography>
+            <Typography variant="caption" style={{ color: "#999" }}>Spannung L1</Typography>
+          </Paper>
+          
+          <Paper elevation={2} style={{ flex: 1, padding: "15px", backgroundColor: "#fff", borderRadius: 10, textAlign: "center" }}>
+            <Box display="flex" alignItems="center" justifyContent="center" gap={1}>
+              <VoltageSvgIcon style={{ color: primaryColor, fontSize: "1.3rem" }} />
+              <Typography variant="subtitle1" style={{ fontWeight: 600, color: "#555" }}>Phase 2</Typography>
+            </Box>
+            <Typography variant="h3" style={{ fontWeight: 600, color: "#222", marginTop: 5 }}>
+              {formatValue(spannungU2, 1, "V")}
+            </Typography>
+            <Typography variant="caption" style={{ color: "#999" }}>Spannung L2</Typography>
+          </Paper>
+          
+          <Paper elevation={2} style={{ flex: 1, padding: "15px", backgroundColor: "#fff", borderRadius: 10, textAlign: "center" }}>
+            <Box display="flex" alignItems="center" justifyContent="center" gap={1}>
+              <VoltageSvgIcon style={{ color: primaryColor, fontSize: "1.3rem" }} />
+              <Typography variant="subtitle1" style={{ fontWeight: 600, color: "#555" }}>Phase 3</Typography>
+            </Box>
+            <Typography variant="h3" style={{ fontWeight: 600, color: "#222", marginTop: 5 }}>
+              {formatValue(spannungU3, 1, "V")}
+            </Typography>
+            <Typography variant="caption" style={{ color: "#999" }}>Spannung L3</Typography>
+          </Paper>
         </Box>
 
-        <div style={{ flex: 1, display: "flex", gap: 20, minHeight: 0 }}>
-          {/* Phase 1 */}
-          <Paper elevation={3} style={{ flex: 1, padding: "15px", background: "#fff", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "auto" }}>
-            <Box display="flex" justifyContent="space-between" alignItems="center" style={{ marginBottom: 10 }}>
-              <Box display="flex" alignItems="center" gap={1}>
-                <FlashOnIcon style={{ color: primaryColor, fontSize: "1.3rem" }} />
-                <Typography variant="h6" style={{ fontWeight: "bold", color: primaryColor, fontSize: "1.1rem" }}>Phase 1 (L1) - Eingang</Typography>
-              </Box>
-              <Box display="flex" alignItems="center" gap={0.5}>
-                <ElectricalServicesIcon style={{ color: primaryColor, fontSize: "1rem" }} />
-                <Typography variant="subtitle1" style={{ fontWeight: "bold", color: primaryColor, fontSize: "0.9rem" }}>Stromwandler</Typography>
-              </Box>
-            </Box>
-            
-            <Box display="flex" alignItems="center" gap={1} style={{ marginBottom: 10 }}>
-              <BoltIcon style={{ color: "#666", fontSize: "1rem" }} />
-              <Typography variant="body2" style={{ fontWeight: "bold", color: "#666", fontSize: "0.9rem" }}>U1</Typography>
-            </Box>
-            
-            <div style={{ flex: 1 }}>
-              {group1.map((key, index) => (
-                <div key={key} style={{ 
-                  display: "flex", 
-                  alignItems: "center", 
-                  marginBottom: 8, 
-                  padding: "4px 8px", 
-                  background: "#fafafa", 
-                  borderRadius: 6
-                }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
-                    <CircleIcon style={{ color: primaryColor, fontSize: "0.7rem" }} />
-                    <Typography style={{ fontWeight: "bold", fontSize: "0.9rem", color: primaryColor, minWidth: 25 }}>{letters1[index]}</Typography>
-                    <Typography style={{ fontSize: "0.85rem", color: "#333" }}>{key}</Typography>
-                  </div>
-                  <Card style={{ backgroundColor: valueColor, minWidth: 90, borderRadius: 4 }}>
-                    <CardContent style={{ padding: "2px 8px" }}>
-                      <Typography variant="body2" align="center" style={{ fontWeight: "bold", fontSize: "0.85rem", color: "#fff" }}>
-                        {formatValue(data[key])} A
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </div>
-              ))}
-            </div>
-
-            {/* Affichage Max et Min après les canaux */}
-            <Divider style={{ margin: "12px 0 8px 0" }} />
-            <Box style={{ marginTop: 8, padding: "8px", background: "#f5f5f5", borderRadius: 8 }}>
-              <Box display="flex" alignItems="center" gap={1} style={{ marginBottom: 4 }}>
-                <ArrowUpwardIcon style={{ color: maxColor, fontSize: "1rem" }} />
-                <Typography variant="caption" style={{ fontWeight: "bold", color: "#666" }}>Max ({formatValue(maxMin1.maxValue)} A) :</Typography>
-                <Typography variant="body2" style={{ fontWeight: "bold", color: maxColor }}>
-                  {maxMin1.max.join(", ")}
-                </Typography>
-              </Box>
-              <Box display="flex" alignItems="center" gap={1}>
-                <ArrowDownwardIcon style={{ color: minColor, fontSize: "1rem" }} />
-                <Typography variant="caption" style={{ fontWeight: "bold", color: "#666" }}>Min ({formatValue(maxMin1.minValue)} A) :</Typography>
-                <Typography variant="body2" style={{ fontWeight: "bold", color: minColor }}>
-                  {maxMin1.min.join(", ")}
-                </Typography>
-              </Box>
-            </Box>
-          </Paper>
-
-          {/* Phase 2 */}
-          <Paper elevation={3} style={{ flex: 1, padding: "15px", background: "#fff", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "auto" }}>
-            <Box display="flex" justifyContent="space-between" alignItems="center" style={{ marginBottom: 10 }}>
-              <Box display="flex" alignItems="center" gap={1}>
-                <FlashOnIcon style={{ color: primaryColor, fontSize: "1.3rem" }} />
-                <Typography variant="h6" style={{ fontWeight: "bold", color: primaryColor, fontSize: "1.1rem" }}>Phase 2 (L2) - Eingang</Typography>
-              </Box>
-              <Box display="flex" alignItems="center" gap={0.5}>
-                <ElectricalServicesIcon style={{ color: primaryColor, fontSize: "1rem" }} />
-                <Typography variant="subtitle1" style={{ fontWeight: "bold", color: primaryColor, fontSize: "0.9rem" }}>Stromwandler</Typography>
-              </Box>
-            </Box>
-            
-            <Box display="flex" alignItems="center" gap={1} style={{ marginBottom: 10 }}>
-              <BoltIcon style={{ color: "#666", fontSize: "1rem" }} />
-              <Typography variant="body2" style={{ fontWeight: "bold", color: "#666", fontSize: "0.9rem" }}>U2</Typography>
-            </Box>
-            
-            <div style={{ flex: 1 }}>
-              {group2.map((key, index) => (
-                <div key={key} style={{ 
-                  display: "flex", 
-                  alignItems: "center", 
-                  marginBottom: 8, 
-                  padding: "4px 8px", 
-                  background: "#fafafa", 
-                  borderRadius: 6
-                }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
-                    <CircleIcon style={{ color: primaryColor, fontSize: "0.7rem" }} />
-                    <Typography style={{ fontWeight: "bold", fontSize: "0.9rem", color: primaryColor, minWidth: 25 }}>{letters2[index]}</Typography>
-                    <Typography style={{ fontSize: "0.85rem", color: "#333" }}>{key}</Typography>
-                  </div>
-                  <Card style={{ backgroundColor: valueColor, minWidth: 90, borderRadius: 4 }}>
-                    <CardContent style={{ padding: "2px 8px" }}>
-                      <Typography variant="body2" align="center" style={{ fontWeight: "bold", fontSize: "0.85rem", color: "#fff" }}>
-                        {formatValue(data[key])} A
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </div>
-              ))}
-            </div>
-
-            {/* Affichage Max et Min après les canaux */}
-            <Divider style={{ margin: "12px 0 8px 0" }} />
-            <Box style={{ marginTop: 8, padding: "8px", background: "#f5f5f5", borderRadius: 8 }}>
-              <Box display="flex" alignItems="center" gap={1} style={{ marginBottom: 4 }}>
-                <ArrowUpwardIcon style={{ color: maxColor, fontSize: "1rem" }} />
-                <Typography variant="caption" style={{ fontWeight: "bold", color: "#666" }}>Max ({formatValue(maxMin2.maxValue)} A) :</Typography>
-                <Typography variant="body2" style={{ fontWeight: "bold", color: maxColor }}>
-                  {maxMin2.max.join(", ")}
-                </Typography>
-              </Box>
-              <Box display="flex" alignItems="center" gap={1}>
-                <ArrowDownwardIcon style={{ color: minColor, fontSize: "1rem" }} />
-                <Typography variant="caption" style={{ fontWeight: "bold", color: "#666" }}>Min ({formatValue(maxMin2.minValue)} A) :</Typography>
-                <Typography variant="body2" style={{ fontWeight: "bold", color: minColor }}>
-                  {maxMin2.min.join(", ")}
-                </Typography>
-              </Box>
-            </Box>
-          </Paper>
-
-          {/* Phase 3 */}
-          <Paper elevation={3} style={{ flex: 1, padding: "15px", background: "#fff", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "auto" }}>
-            <Box display="flex" justifyContent="space-between" alignItems="center" style={{ marginBottom: 10 }}>
-              <Box display="flex" alignItems="center" gap={1}>
-                <FlashOnIcon style={{ color: primaryColor, fontSize: "1.3rem" }} />
-                <Typography variant="h6" style={{ fontWeight: "bold", color: primaryColor, fontSize: "1.1rem" }}>Phase 3 (L3) - Eingang</Typography>
-              </Box>
-              <Box display="flex" alignItems="center" gap={0.5}>
-                <ElectricalServicesIcon style={{ color: primaryColor, fontSize: "1rem" }} />
-                <Typography variant="subtitle1" style={{ fontWeight: "bold", color: primaryColor, fontSize: "0.9rem" }}>Stromwandler</Typography>
-              </Box>
-            </Box>
-            
-            <Box display="flex" alignItems="center" gap={1} style={{ marginBottom: 10 }}>
-              <BoltIcon style={{ color: "#666", fontSize: "1rem" }} />
-              <Typography variant="body2" style={{ fontWeight: "bold", color: "#666", fontSize: "0.9rem" }}>U3</Typography>
-            </Box>
-            
-            <div style={{ flex: 1 }}>
-              {group3.map((key, index) => (
-                <div key={key} style={{ 
-                  display: "flex", 
-                  alignItems: "center", 
-                  marginBottom: 8, 
-                  padding: "4px 8px", 
-                  background: "#fafafa", 
-                  borderRadius: 6
-                }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
-                    <CircleIcon style={{ color: primaryColor, fontSize: "0.7rem" }} />
-                    <Typography style={{ fontWeight: "bold", fontSize: "0.9rem", color: primaryColor, minWidth: 25 }}>{letters3[index]}</Typography>
-                    <Typography style={{ fontSize: "0.85rem", color: "#333" }}>{key}</Typography>
-                  </div>
-                  <Card style={{ backgroundColor: valueColor, minWidth: 90, borderRadius: 4 }}>
-                    <CardContent style={{ padding: "2px 8px" }}>
-                      <Typography variant="body2" align="center" style={{ fontWeight: "bold", fontSize: "0.85rem", color: "#fff" }}>
-                        {formatValue(data[key])} A
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </div>
-              ))}
-            </div>
-
-            {/* Affichage Max et Min après les canaux */}
-            <Divider style={{ margin: "12px 0 8px 0" }} />
-            <Box style={{ marginTop: 8, padding: "8px", background: "#f5f5f5", borderRadius: 8 }}>
-              <Box display="flex" alignItems="center" gap={1} style={{ marginBottom: 4 }}>
-                <ArrowUpwardIcon style={{ color: maxColor, fontSize: "1rem" }} />
-                <Typography variant="caption" style={{ fontWeight: "bold", color: "#666" }}>Max ({formatValue(maxMin3.maxValue)} A) :</Typography>
-                <Typography variant="body2" style={{ fontWeight: "bold", color: maxColor }}>
-                  {maxMin3.max.join(", ")}
-                </Typography>
-              </Box>
-              <Box display="flex" alignItems="center" gap={1}>
-                <ArrowDownwardIcon style={{ color: minColor, fontSize: "1rem" }} />
-                <Typography variant="caption" style={{ fontWeight: "bold", color: "#666" }}>Min ({formatValue(maxMin3.minValue)} A) :</Typography>
-                <Typography variant="body2" style={{ fontWeight: "bold", color: minColor }}>
-                  {maxMin3.min.join(", ")}
-                </Typography>
-              </Box>
-            </Box>
-          </Paper>
+        <div style={{ display: "flex", gap: 15 }}>
+          <GroupSection channels={group1} title="KANÄLE CH1 - CH6" icon={ViewModuleIcon} />
+          <GroupSection channels={group2} title="KANÄLE CH7 - CH12" icon={ViewModuleIcon} />
+          <GroupSection channels={group3} title="KANÄLE CH13 - CH18" icon={ViewModuleIcon} />
         </div>
 
-        {/* Menu du bas avec icônes */}
-        <Box display="flex" justifyContent="center" gap={2} style={{ marginTop: 15, padding: "10px 0", flexWrap: "wrap" }}>
-          <Box display="flex" alignItems="center" gap={0.5} style={{ background: "#fff", padding: "4px 12px", borderRadius: 15, boxShadow: "0 1px 2px rgba(0,0,0,0.1)" }}>
-            <PowerIcon style={{ color: "#555", fontSize: "0.8rem" }} />
-            <Typography variant="body2" style={{ fontWeight: "bold", color: "#555" }}>Strom</Typography>
-          </Box>
-          <Box display="flex" alignItems="center" gap={0.5} style={{ background: "#fff", padding: "4px 12px", borderRadius: 15, boxShadow: "0 1px 2px rgba(0,0,0,0.1)" }}>
-            <ShowChartIcon style={{ color: "#555", fontSize: "0.8rem" }} />
-            <Typography variant="body2" style={{ fontWeight: "bold", color: "#555" }}>Cosinus Phi</Typography>
-          </Box>
-          <Box display="flex" alignItems="center" gap={0.5} style={{ background: "#fff", padding: "4px 12px", borderRadius: 15, boxShadow: "0 1px 2px rgba(0,0,0,0.1)" }}>
-            <SpeedIcon style={{ color: "#555", fontSize: "0.8rem" }} />
-            <Typography variant="body2" style={{ fontWeight: "bold", color: "#555" }}>Wirkleistung</Typography>
-          </Box>
-          <Box display="flex" alignItems="center" gap={0.5} style={{ background: "#fff", padding: "4px 12px", borderRadius: 15, boxShadow: "0 1px 2px rgba(0,0,0,0.1)" }}>
-            <TimelineIcon style={{ color: "#555", fontSize: "0.8rem" }} />
-            <Typography variant="body2" style={{ fontWeight: "bold", color: "#555" }}>Scheinleistung</Typography>
-          </Box>
-          <Box display="flex" alignItems="center" gap={0.5} style={{ background: "#fff", padding: "4px 12px", borderRadius: 15, boxShadow: "0 1px 2px rgba(0,0,0,0.1)" }}>
-            <FlashOnIcon style={{ color: "#555", fontSize: "0.8rem" }} />
-            <Typography variant="body2" style={{ fontWeight: "bold", color: "#555" }}>Blindleistung</Typography>
-          </Box>
-          <Box display="flex" alignItems="center" gap={0.5} style={{ background: "#fff", padding: "4px 12px", borderRadius: 15, boxShadow: "0 1px 2px rgba(0,0,0,0.1)" }}>
-            <BoltIcon style={{ color: "#555", fontSize: "0.8rem" }} />
-            <Typography variant="body2" style={{ fontWeight: "bold", color: "#555" }}>Energie</Typography>
-          </Box>
-        </Box>
       </div>
     </div>
   );
