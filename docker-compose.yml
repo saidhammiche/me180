@@ -1,0 +1,17 @@
+version: "3.8"
+
+services:
+  backend:
+    build: ./backend
+    container_name: backend_app
+    network_mode: host
+    restart: always
+
+  frontend:
+    build: ./frontend
+    container_name: frontend_app
+    ports:
+      - "50000:80"
+    restart: always
+
+    
